@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Response System - Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    #alertsMap { height: 400px; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div class="flex items-center">
+          <i class="fas fa-shield-alt text-red-500 text-2xl mr-2"></i>
+          <h1 class="text-xl font-bold text-gray-800">Emergency Response - Admin</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button id="logoutBtn" class="flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-sign-out-alt mr-1"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Active Alerts Map -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Active Alerts</h2>
+            <div id="alertsMap" class="rounded-lg"></div>
+          </div>
+
+          <!-- Active Alerts List -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-800">Recent Alerts</h2>
+              <button id="newAlertBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm">
+                <i class="fas fa-plus mr-1"></i> New Alert
+              </button>
+            </div>
+            <div id="alertsList" class="space-y-3">
+              <!-- Alerts will be loaded here -->
+              <div class="text-center text-gray-500 py-4">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Loading alerts...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+          <!-- User Management -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-800">Users</h2>
+              <button id="newUserBtn" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm">
+                <i class="fas fa-plus mr-1"></i> New User
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                  <!-- Users will be loaded here -->
+                  <tr>
+                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                      <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+                      <p>Loading users...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- System Stats -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">System Statistics</h2>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="flex items-center">
+                  <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-3">
+                    <i class="fas fa-users text-xl"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-500">Total Users</p>
+                    <h3 id="totalUsers" class="text-2xl font-bold">0</h3>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-red-50 p-4 rounded-lg">
+                <div class="flex items-center">
+                  <div class="p-3 rounded-full bg-red-100 text-red-600 mr-3">
+                    <i class="fas fa-bell text-xl"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-500">Active Alerts</p>
+                    <h3 id="activeAlerts" class="text-2xl font-bold">0</h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- New Alert Modal -->
+  <div id="newAlertModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Create New Community Alert</h3>
+        <button id="closeAlertModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="alertForm" class="space-y-4">
+        <div>
+          <label for="alertTitle" class="block text-sm font-medium text-gray-700">Title</label>
+          <input type="text" id="alertTitle" name="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500">
+        </div>
+        <div>
+          <label for="alertDescription" class="block text-sm font-medium text-gray-700">Description</label>
+          <textarea id="alertDescription" name="description" rows="3" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500"></textarea>
+        </div>
+        <div>
+          <label for="alertType" class="block text-sm font-medium text-gray-700">Alert Type</label>
+          <select id="alertType" name="type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500">
+            <option value="natural_disaster">Natural Disaster</option>
+            <option value="crime">Crime</option>
+            <option value="health">Health Emergency</option>
+            <option value="weather">Severe Weather</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="alertSeverity" class="block text-sm font-medium text-gray-700">Severity</label>
+          <select id="alertSeverity" name="severity" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelAlertBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button type="submit" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">
+            Create Alert
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script>
+    // Check authentication and admin role
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/index.html';
+    } else {
+      // Verify token contains admin role
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role !== 'admin') {
+        window.location.href = '/dashboard.html';
+      }
+    }
+
+    // Initialize map
+    let map;
+    let alertMarkers = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Logout functionality
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        window.location.href = '/index.html';
+      });
+
+      // Initialize map
+      initMap();
+
+      // Load users and alerts
+      loadUsers();
+      loadAlerts();
+      loadStats();
+
+      // Modal functionality
+      const newAlertModal = document.getElementById('newAlertModal');
+      document.getElementById('newAlertBtn').addEventListener('click', () => {
+        newAlertModal.classList.remove('hidden');
+      });
+      document.getElementById('closeAlertModal').addEventListener('click', () => {
+        newAlertModal.classList.add('hidden');
+      });
+      document.getElementById('cancelAlertBtn').addEventListener('click', () => {
+        newAlertModal.classList.add('hidden');
+      });
+
+      // Handle new alert form submission
+      document.getElementById('alertForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await createAlert();
+        newAlertModal.classList.add('hidden');
+      });
+    });
+
+    function initMap() {
+      map = L.map('alertsMap').setView([0, 0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+    }
+
+    async function loadUsers() {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const users = await response.json();
+        const usersTableBody = document.getElementById('usersTableBody');
+        
+        if (users.length > 0) {
+          usersTableBody.innerHTML = users.map(user => `
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="text-sm font-medium text-gray-900">${user.email}</div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                  ${user.role}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button onclick="viewUser(${user.id})" class="text-blue-600 hover:text-blue-900 mr-3">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="editUser(${user.id})" class="text-yellow-600 hover:text-yellow-900 mr-3">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          usersTableBody.innerHTML = `
+            <tr>
+              <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                No users found
+              </td>
+            </tr>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    }
+
+    async function loadAlerts() {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/alerts', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const alerts = await response.json();
+        const alertsList = document.getElementById('alertsList');
+        
+        // Clear existing markers
+        alertMarkers.forEach(marker => map.removeLayer(marker));
+        alertMarkers = [];
+
+        if (alerts.length > 0) {
+          alertsList.innerHTML = alerts.map(alert => {
+            // Add marker to map
+            const location = JSON.parse(alert.location);
+            const marker = L.marker([location.latitude, location.longitude], {
+              icon: L.divIcon({
+                className: 'alert-marker',
+                html: `<i class="fas fa-exclamation-triangle text-${getAlertColor(alert.severity)} text-2xl"></i>`,
+                iconSize: [24, 24]
+              })
+            }).addTo(map);
+            
+            marker.bindPopup(`
+              <b>${alert.title}</b><br>
+              ${alert.description}<br>
+              <small>${new Date(alert.createdAt).toLocaleString()}</small>
+            `);
+            
+            alertMarkers.push(marker);
+
+            return `
+              <div class="p-3 border-l-4 ${getAlertBorderColor(alert.severity)} bg-gray-50 rounded-r-lg">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-medium">${alert.title}</h3>
+                    <p class="text-sm text-gray-600 mt-1">${alert.description}</p>
+                  </div>
+                  <span class="text-xs ${getAlertTextColor(alert.severity)}">
+                    <i class="fas fa-exclamation-circle mr-1"></i> ${alert.severity}
+                  </span>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                  <span class="text-xs text-gray-500">${new Date(alert.createdAt).toLocaleString()}</span>
+                  <button onclick="resolveAlert(${alert.id})" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                    Resolve
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          // Fit map to show all markers
+          if (alertMarkers.length > 0) {
+            const group = new L.featureGroup(alertMarkers);
+            map.fitBounds(group.getBounds());
+          }
+        } else {
+          alertsList.innerHTML = `
+            <div class="text-center text-gray-500 py-4">
+              <i class="fas fa-bell-slash text-2xl mb-2"></i>
+              <p>No active alerts</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading alerts:', error);
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const [usersRes, alertsRes] = await Promise.all([
+          fetch('http://localhost:8000/api/admin/users', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch('http://localhost:8000/api/admin/alerts', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        ]);
+
+        const users = await usersRes.json();
+        const alerts = await alertsRes.json();
+
+        document.getElementById('totalUsers').textContent = users.length;
+        document.getElementById('activeAlerts').textContent = alerts.length;
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+
+    async function createAlert() {
+      const form = document.getElementById('alertForm');
+      const formData = {
+        title: form.elements.title.value,
+        description: form.elements.description.value,
+        type: form.elements.type.value,
+        severity: form.elements.severity.value,
+        location: JSON.stringify({ latitude: 0, longitude: 0 }), // In real app, get location from map
+        radius: 5 // Default radius in km
+      };
+
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/community-alerts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          loadAlerts();
+          loadStats();
+          form.reset();
+        } else {
+          const error = await response.json();
+          alert('Failed to create alert: ' + (error.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error creating alert:', error);
+        alert('Failed to create alert. Please try again.');
+      }
+    }
+
+    function getAlertColor(severity) {
+      switch(severity.toLowerCase()) {
+        case 'low': return 'blue-500';
+        case 'medium': return 'yellow-500';
+        case 'high': return 'orange-500';
+        case 'critical': return 'red-500';
+        default: return 'gray-500';
+      }
+    }
+
+    function getAlertBorderColor(severity) {
+      switch(severity.toLowerCase()) {
+        case 'low': return 'border-blue-400';
+        case 'medium': return 'border-yellow-400';
+        case 'high': return 'border-orange-400';
+        case 'critical': return 'border-red-500';
+        default: return 'border-gray-400';
+      }
+    }
+
+    function getAlertTextColor(severity) {
+      switch(severity.toLowerCase()) {
+        case 'low': return 'text-blue-600';
+        case 'medium': return 'text-yellow-600';
+        case 'high': return 'text-orange-600';
+        case 'critical': return 'text-red-600';
+        default: return 'text-gray-600';
+      }
+    }
+
+    function viewUser(userId) {
+      window.location.href = `/admin-user.html?id=${userId}`;
+    }
+
+    function editUser(userId) {
+      // In a real app, this would open an edit modal
+      alert(`Edit user ${userId} - functionality to be implemented`);
+    }
+
+    async function deleteUser(userId) {
+      if (confirm('Are you sure you want to delete this user?')) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            loadUsers();
+            loadStats();
+          } else {
+            const error = await response.json();
+            alert('Failed to delete user: ' + (error.message || 'Unknown error'));
+          }
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          alert('Failed to delete user. Please try again.');
+        }
+      }
+    }
+
+    async function resolveAlert(alertId) {
+      try {
+        const response = await fetch(`http://localhost:8000/api/admin/alerts/${alertId}/resolve`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          loadAlerts();
+          loadStats();
+        } else {
+          const error = await response.json();
+          alert('Failed to resolve alert: ' + (error.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error resolving alert:', error);
+        alert('Failed to resolve alert. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>
